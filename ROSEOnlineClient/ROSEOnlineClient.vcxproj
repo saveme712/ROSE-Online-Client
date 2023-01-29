@@ -166,7 +166,7 @@
     <ProjectReference Include="..\ImGui\ImGui.vcxproj">
       <Project>{ddcbcd01-76e2-470f-840c-515996692630}</Project>
     </ProjectReference>
-    <ProjectReference Include="..\mh\mh.vcxproj">
+    <ProjectReference Include="..\MinHook\MinHook.vcxproj">
       <Project>{91c4011a-a5b6-47af-b5a5-e250f9e66cb9}</Project>
     </ProjectReference>
   </ItemGroup>
