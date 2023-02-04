@@ -1,8 +1,9 @@
 #include <MinHook.h>
 #include "rose.h"
+
 #include <cstdint>
 #include <stdio.h>
-
+#include <vector>
 #include <Windows.h>
 
 #include <imgui.h>
@@ -14,8 +15,12 @@ typedef LRESULT (*fn_wndproc)(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 static fn_present_wrapper orig_present_wrapper;
 static fn_wndproc orig_wndproc;
 
+static fn_send_packet orig_send_packet;
+
 static char* game_base = NULL;
 static bool initialized_renderer = false;
+
+static std::vector<Packet> sent_packets;
 
 static ObjectManager* get_object_manager()
 {
@@ -102,6 +107,17 @@ static void render_menu_entities()
 }
 
 //
+// Renders all sent packets to the menu.
+//
+static void render_menu_packets()
+{
+    for (auto& pkt : sent_packets)
+    {
+        ImGui::Text("Packet %d %p", (int)pkt.hdr.type, pkt.gs.padding);
+    }
+}
+
+//
 // Renders our custom menu to ImGui.
 //
 static void render_menu()
@@ -109,7 +125,22 @@ static void render_menu()
     ImGui::Begin("ROSE Online Client");
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     
-    render_menu_entities();
+    if (ImGui::BeginTabBar("MainTabs"))
+    {
+        if (ImGui::BeginTabItem("Entities"))
+        {
+            render_menu_entities();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Packets"))
+        {
+            render_menu_packets();
+            ImGui::EndTabItem();
+        }
+
+        ImGui::EndTabBar();
+    }
     render_esp_entities();
 
     ImGui::End();
@@ -139,6 +170,18 @@ static void hk_present_wrapper(Renderer* renderer, HWND hwnd)
 }
 
 //
+// Our hook for the game function that sends a packet to the server.
+//
+static void hk_send_packet(Network* network, Packet* packet, bool send_to_world)
+{
+    Packet copied;
+    memcpy(&copied, packet, packet->hdr.size);
+    sent_packets.push_back(copied);
+    
+    orig_send_packet(network, packet, send_to_world);
+}
+
+//
 // Creates and enables a new hook using minhook.
 //
 static void create_and_enable_hook(void* target, void* detour, void* orig)
@@ -160,6 +203,7 @@ static void create_and_enable_hook(void* target, void* detour, void* orig)
 static void install_hooks()
 {
     create_and_enable_hook(game_base + OFF_FUNC_PRESENT, hk_present_wrapper, &orig_present_wrapper);
+    create_and_enable_hook(game_base + OFF_FUNC_SEND_PACKET, hk_send_packet, &orig_send_packet);
 }
 
 //

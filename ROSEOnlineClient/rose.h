@@ -4,15 +4,22 @@
 
 // 40 53 48 83 EC 30 48 8B D9 48 C7 44 24 ? ? ? ? ? 
 // \x40\x53\x48\x83\xEC\x30\x48\x8B\xD9\x48\xC7\x44\x24\x00\x00\x00\x00\x00, xxxxxxxxxxxxx?????
-#define OFF_FUNC_PRESENT 0x90B250
+#define OFF_FUNC_PRESENT 0x90F040
 
-// sig: 40 53 48 83 EC 40 F3 0F 10 1D ? ? ? ? 
+// 40 53 48 83 EC 40 F3 0F 10 1D ? ? ? ? 
 // \x40\x53\x48\x83\xEC\x40\xF3\x0F\x10\x1D\x00\x00\x00\x00, xxxxxxxxxx????
-#define OFF_FUNC_WORLD_TO_SCREEN 0x8AB900
+#define OFF_FUNC_WORLD_TO_SCREEN 0x8AF6C0
 
-#define OFF_GLOBAL_OBJECT_MANAGER 0x10C4090
+// 48 89 5C 24 ? 48 89 74 24 ? 57 48 83 EC 20 48 8B F9 B8 ? ? ? ? 
+// \x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x57\x48\x83\xEC\x20\x48\x8B\xF9\xB8\x00\x00\x00\x00, xxxx?xxxx?xxxxxxxxx????
+#define OFF_FUNC_SEND_PACKET 0x2D5120
+
+// 48 8B 05 ? ? ? ? 48 8B 94 C8 ? ? ? ? 80 BA ? ? ? ? ?
+// \x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x94\xC8\x00\x00\x00\x00\x80\xBA\x00\x00\x00\x00\x00, xxx????xxxx????xx?????
+#define OFF_GLOBAL_OBJECT_MANAGER 0x10C90A0
 
 #define ENTITY_COUNT 4096
+#define MAX_PACKET_SIZE 4096
 
 enum EntityType : int32_t
 {
@@ -91,7 +98,41 @@ struct Renderer
 	LPDIRECT3DDEVICE9 device;
 	// 0x1f0
 };
+
+struct PacketHeader
+{
+	uint16_t size;
+	uint16_t type;
+	uint8_t reserved;
+	uint8_t crc;
+};
+
+struct PacketBodyGeneric
+{
+	char padding[MAX_PACKET_SIZE];
+};
+
+struct Packet
+{
+public:
+	PacketHeader hdr;
+	union
+	{
+		PacketBodyGeneric gs;
+	};
+};
+
+class Network
+{
+public:
+	// 0x0
+	virtual void send_packet(Packet* pkt, bool send_to_world = false) = 0;
+
+public:
+	// 0x8
+};
 #pragma pack(pop)
 
 typedef void (*fn_world_to_screen)(float x, float y, float z, float* ox, float* oy, float* oz);
 typedef void (*fn_present_wrapper)(Renderer* renderer, HWND hwnd);
+typedef void (*fn_send_packet)(Network* network, Packet* pkt, bool send_to_world);
