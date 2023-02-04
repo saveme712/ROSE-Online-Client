@@ -81,6 +81,7 @@ public:
 	// 0x10
 	Vec3 scene_position;
 	// 0x1c
+	uint16_t client_index;
 
 public:
 	void get_name(char* name, size_t size);
@@ -89,7 +90,11 @@ public:
 struct ObjectManager
 {
 	// 0x0
-	char padding000[0x22078];
+	char padding000[0x2000a];
+	// 0x2000a
+	uint16_t client_to_index_map[ENTITY_COUNT];
+	// 0x2200a
+	char padding001[0x6e];
 	// 0x22078
 	Entity* entities[ENTITY_COUNT];
 	// 0x2a078
@@ -113,9 +118,28 @@ struct PacketHeader
 	uint8_t crc;
 };
 
+enum AbilityId : uint16_t
+{
+	aid_dual_scratch = 528
+};
+
+enum PacketId : uint16_t
+{
+	pid_ability = 1971
+};
+
 struct PacketBodyGeneric
 {
 	char padding[MAX_PACKET_SIZE];
+};
+
+struct PacketBodyAbility
+{
+	uint16_t entity_id;
+	uint16_t ability_id;
+	uint16_t unk1;
+	uint16_t unk2;
+	uint16_t unk3;
 };
 
 struct Packet
@@ -125,6 +149,7 @@ public:
 	union
 	{
 		PacketBodyGeneric gs;
+		PacketBodyAbility ability;
 	};
 };
 

@@ -23,6 +23,7 @@ static bool initialized_renderer = false;
 static bool menu_open = false;
 static bool menu_entity_names = false;
 
+static Packet our_packet;
 static std::vector<Packet> sent_packets;
 
 static ObjectManager* get_object_manager()
@@ -41,6 +42,21 @@ static bool world_to_screen(Vec3 pos, Vec3* out)
     auto fn = (fn_world_to_screen)(game_base + OFF_FUNC_WORLD_TO_SCREEN);
     fn(pos.x, pos.y, pos.z, &out->x, &out->y, &out->z);
     return true;
+}
+
+static void attack(Entity* e, uint16_t ability_id)
+{
+    if (auto obj_manager = get_object_manager())
+    {
+        our_packet.hdr.type = pid_ability;
+        our_packet.hdr.size = sizeof(PacketBodyAbility);
+
+        memset(&our_packet.ability, 0, sizeof(our_packet.ability));
+        our_packet.ability.entity_id = obj_manager->client_to_index_map[e->client_index];
+        our_packet.ability.ability_id = ability_id;
+
+        orig_send_packet(get_network(), &our_packet, false);
+    }
 }
 
 //
@@ -86,6 +102,7 @@ static void init_imgui(LPDIRECT3DDEVICE9 device)
 static void render_esp_entities()
 {
     char name[256];
+    char fmt[512];
     auto dl = ImGui::GetBackgroundDrawList();
     Vec3 w2s_out;
 
@@ -97,10 +114,12 @@ static void render_esp_entities()
             {
                 if (menu_entity_names)
                 {
-                    ent->get_name(name, sizeof(name));
                     if (world_to_screen(ent->scene_position, &w2s_out))
                     {
-                        dl->AddText(ImVec2(w2s_out.x, w2s_out.y), 0xff0000ff, name);
+                        ent->get_name(name, sizeof(name));
+                        sprintf_s(fmt, "%s: %d: %p", name, (int)obj_manager->client_to_index_map[ent->client_index], ent);
+
+                        dl->AddText(ImVec2(w2s_out.x, w2s_out.y), 0xff0000ff, fmt);
                     }
                 }
             }
@@ -120,8 +139,17 @@ static void render_menu_entities()
         {
             if (auto ent = obj_manager->entities[i])
             {
-                ent->get_name(name, sizeof(name));
-                ImGui::Text("%s @ %p", name, ent);
+                if (ImGui::BeginChild((ImGuiID)ent, ImVec2(0, 25)))
+                {
+                    ent->get_name(name, sizeof(name));
+                    ImGui::Text("%s @ %p", name, ent);
+                    ImGui::SameLine();
+                    if (ImGui::Button("Attack"))
+                    {
+                        attack(ent, AbilityId::aid_dual_scratch);
+                    }
+                }
+                ImGui::EndChild();
             }
         }
     }
@@ -134,12 +162,16 @@ static void render_menu_packets()
 {
     for (auto& pkt : sent_packets)
     {
-        ImGui::Text("Packet %d %p", (int)pkt.hdr.type, pkt.gs.padding);
-        ImGui::SameLine();
-        if (ImGui::Button("Resend"))
+        if (ImGui::BeginChild((ImGuiID)&pkt, ImVec2(0, 25)))
         {
-            orig_send_packet(get_network(), &pkt, false);
+            ImGui::Text("Packet %d %p", (int)pkt.hdr.type, pkt.gs.padding);
+            ImGui::SameLine();
+            if (ImGui::Button("Resend"))
+            {
+                orig_send_packet(get_network(), &pkt, false);
+            }
         }
+        ImGui::EndChild();
     }
 }
 
