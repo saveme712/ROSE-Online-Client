@@ -18,6 +18,12 @@
 // \x48\x8B\x05\x00\x00\x00\x00\x48\x8B\x94\xC8\x00\x00\x00\x00\x80\xBA\x00\x00\x00\x00\x00, xxx????xxxx????xx?????
 #define OFF_GLOBAL_OBJECT_MANAGER 0x10C90A0
 
+// FF 10 48 8B 0D ? ? ? ? 48 85 C9 74 16
+// \xFF\x10\x48\x8B\x0D\x00\x00\x00\x00\x48\x85\xC9\x74\x16, xxxxx????xxxxx
+#define OFF_GLOBAL_NETWORK 0x10D00D8
+
+#define OFF_NETWORK_2 0x16d8
+
 #define ENTITY_COUNT 4096
 #define MAX_PACKET_SIZE 4096
 

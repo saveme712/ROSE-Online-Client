@@ -543,7 +543,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARA
             ::SetCapture(hwnd);
         bd->MouseButtonsDown |= 1 << button;
         io.AddMouseButtonEvent(button, true);
-        return 0;
+        return 1;
     }
     case WM_LBUTTONUP:
     case WM_RBUTTONUP:
@@ -559,14 +559,14 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARA
         if (bd->MouseButtonsDown == 0 && ::GetCapture() == hwnd)
             ::ReleaseCapture();
         io.AddMouseButtonEvent(button, false);
-        return 0;
+        return 1;
     }
     case WM_MOUSEWHEEL:
         io.AddMouseWheelEvent(0.0f, (float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
-        return 0;
+        return 1;
     case WM_MOUSEHWHEEL:
         io.AddMouseWheelEvent((float)GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA, 0.0f);
-        return 0;
+        return 1;
     case WM_KEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYDOWN:
@@ -608,7 +608,7 @@ IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARA
                 if (IsVkDown(VK_RMENU) == is_key_down) { ImGui_ImplWin32_AddKeyEvent(ImGuiKey_RightAlt, is_key_down, VK_RMENU, scancode); }
             }
         }
-        return 0;
+        return 1;
     }
     case WM_SETFOCUS:
     case WM_KILLFOCUS:

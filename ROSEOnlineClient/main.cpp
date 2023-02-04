@@ -20,11 +20,20 @@ static fn_send_packet orig_send_packet;
 static char* game_base = NULL;
 static bool initialized_renderer = false;
 
+static bool menu_open = false;
+static bool menu_entity_names = false;
+
 static std::vector<Packet> sent_packets;
 
 static ObjectManager* get_object_manager()
 {
     return *((ObjectManager**)(game_base + OFF_GLOBAL_OBJECT_MANAGER));
+}
+
+static Network* get_network()
+{
+    auto ptr = *((uint64_t*)(game_base + OFF_GLOBAL_NETWORK));
+    return (Network*)(ptr + OFF_NETWORK_2);
 }
 
 static bool world_to_screen(Vec3 pos, Vec3* out)
@@ -39,7 +48,16 @@ static bool world_to_screen(Vec3 pos, Vec3* out)
 //
 static LRESULT CALLBACK hk_wndproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-    ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam);
+    if (msg == WM_KEYDOWN && wparam == VK_INSERT)
+    {
+        menu_open = !menu_open;
+    }
+
+    if (menu_open && ImGui_ImplWin32_WndProcHandler(hwnd, msg, wparam, lparam))
+    {
+        return 0;
+    }
+
     return orig_wndproc(hwnd, msg, wparam, lparam);
 }
 
@@ -68,7 +86,7 @@ static void init_imgui(LPDIRECT3DDEVICE9 device)
 static void render_esp_entities()
 {
     char name[256];
-    auto dl = ImGui::GetForegroundDrawList();
+    auto dl = ImGui::GetBackgroundDrawList();
     Vec3 w2s_out;
 
     if (auto obj_manager = get_object_manager())
@@ -77,10 +95,13 @@ static void render_esp_entities()
         {
             if (auto ent = obj_manager->entities[i])
             {
-                ent->get_name(name, sizeof(name));
-                if (world_to_screen(ent->scene_position, &w2s_out))
+                if (menu_entity_names)
                 {
-                    dl->AddText(ImVec2(w2s_out.x, w2s_out.y), 0xff0000ff, name);
+                    ent->get_name(name, sizeof(name));
+                    if (world_to_screen(ent->scene_position, &w2s_out))
+                    {
+                        dl->AddText(ImVec2(w2s_out.x, w2s_out.y), 0xff0000ff, name);
+                    }
                 }
             }
         }
@@ -114,6 +135,11 @@ static void render_menu_packets()
     for (auto& pkt : sent_packets)
     {
         ImGui::Text("Packet %d %p", (int)pkt.hdr.type, pkt.gs.padding);
+        ImGui::SameLine();
+        if (ImGui::Button("Resend"))
+        {
+            orig_send_packet(get_network(), &pkt, false);
+        }
     }
 }
 
@@ -127,6 +153,12 @@ static void render_menu()
     
     if (ImGui::BeginTabBar("MainTabs"))
     {
+        if (ImGui::BeginTabItem("Overlay"))
+        {
+            if (ImGui::Checkbox("Entity Names", &menu_entity_names));
+            ImGui::EndTabItem();
+        }
+
         if (ImGui::BeginTabItem("Entities"))
         {
             render_menu_entities();
@@ -141,9 +173,16 @@ static void render_menu()
 
         ImGui::EndTabBar();
     }
-    render_esp_entities();
 
     ImGui::End();
+}
+
+//
+// Renders our custom overlay to ImGui.
+//
+static void render_esp()
+{
+    render_esp_entities();
 }
 
 //
@@ -160,8 +199,12 @@ static void hk_present_wrapper(Renderer* renderer, HWND hwnd)
     ImGui_ImplDX9_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
-    render_menu();
+    if (menu_open)
+    {
+        render_menu();
+    }
 
+    render_esp();
     ImGui::EndFrame();
     ImGui::Render();
     ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
